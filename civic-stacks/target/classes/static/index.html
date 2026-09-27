@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>CivicStacks — Digital Licensing Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#171310; --panel:#221C17; --panel2:#2A231D;
+    --gold:#E8B94B; --teal:#4FB6A8; --amber:#FF9B4A; --danger:#FF6B6B;
+    --text:#F4ECDF; --sub:#A7998A; --line:#3A312A;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--ink);color:var(--text);font-family:Inter,system-ui,sans-serif;
+       padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);}
+  h1,h2,h3,.mono{font-family:Fraunces,serif;}
+  header{padding:22px 24px 10px; border-bottom:1px solid var(--line); position:sticky; top:env(safe-area-inset-top,0px); background:var(--ink); z-index:5;}
+  header h1{margin:0; font-size:26px; letter-spacing:.3px; color:var(--gold); font-weight:700;}
+  header p{margin:2px 0 0; color:var(--sub); font-size:13px;}
+  .tabs{display:flex; gap:6px; margin-top:14px; overflow-x:auto;}
+  .tab{padding:8px 14px; border-radius:999px; border:1px solid var(--line); color:var(--sub); font-size:13px; cursor:pointer; white-space:nowrap;}
+  .tab.active{background:var(--gold); color:#171310; border-color:var(--gold); font-weight:600;}
+  main{max-width:1080px; margin:0 auto; padding:20px;}
+  .grid{display:grid; gap:14px;}
+  .stat-row{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));}
+  .stat{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px;}
+  .stat .num{font-family:Fraunces; font-size:28px; font-weight:700;}
+  .stat .lbl{color:var(--sub); font-size:12px; text-transform:uppercase; letter-spacing:.06em;}
+  .accent-gold{color:var(--gold);} .accent-teal{color:var(--teal);} .accent-amber{color:var(--amber);}
+  section{display:none;}
+  section.active{display:block;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px;}
+  .card h3{margin:0 0 10px; font-size:18px;}
+  .licenses{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));}
+  .license{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:12px;}
+  .license .tag{font-weight:700; font-family:Fraunces; font-size:16px;}
+  .license .st{font-size:11px; padding:2px 8px; border-radius:999px; float:right;}
+  .st-ACTIVE{background:rgba(232,185,75,.18); color:var(--gold);}
+  .st-EXPIRED{background:rgba(255,107,107,.18); color:var(--danger);}
+  .cap{height:8px; border-radius:4px; background:#171310; margin-top:10px; overflow:hidden;}
+  .cap span{display:block; height:100%; border-radius:4px;}
+  .cap-ok{background:var(--gold);} .cap-mid{background:var(--teal);} .cap-full{background:var(--danger);}
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th,td{text-align:left; padding:8px 6px; border-bottom:1px solid var(--line);}
+  th{color:var(--sub); font-weight:500; font-size:11px; text-transform:uppercase;}
+  select,button,input{font-family:Inter; font-size:13px; border-radius:8px; border:1px solid var(--line); background:var(--panel2); color:var(--text); padding:8px 10px;}
+  button{background:var(--gold); color:#171310; border:none; font-weight:700; cursor:pointer;}
+  button.ghost{background:transparent; color:var(--teal); border:1px solid var(--teal);}
+  .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px;}
+  canvas{max-height:230px;}
+  .pill{display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; background:rgba(255,255,255,.08);}
+  .flag{color:var(--danger); font-weight:700;}
+  @media (prefers-color-scheme:light){ :root{ } }
+</style>
+</head>
+<body>
+<header>
+  <h1>📚 CivicStacks</h1>
+  <p>Automated Municipal Library E-Book Licensing &amp; Digital Asset Management</p>
+  <div class="tabs">
+    <div class="tab active" data-tab="overview">Overview</div>
+    <div class="tab" data-tab="catalog">Catalog &amp; Publishers</div>
+    <div class="tab" data-tab="checkout">Checkout Desk</div>
+    <div class="tab" data-tab="finance">Finance &amp; Budget</div>
+  </div>
+</header>
+
+<main>
+
+  <section id="overview" class="active">
+    <div class="grid stat-row">
+      <div class="stat"><div class="num accent-gold" id="stat-licenses">–</div><div class="lbl">Active licenses</div></div>
+      <div class="stat"><div class="num accent-teal" id="stat-checkouts">–</div><div class="lbl">Active checkouts</div></div>
+      <div class="stat"><div class="num accent-amber" id="stat-capped">–</div><div class="lbl">At concurrency cap</div></div>
+      <div class="stat"><div class="num" id="stat-revenue">–</div><div class="lbl">Subscription revenue (₹)</div></div>
+    </div>
+    <div class="card">
+      <h3>Licenses needing extra keys</h3>
+      <p style="color:var(--sub); font-size:13px; margin-top:-4px;">Auto-flagged when active checkouts reach the concurrent checkout limit.</p>
+      <table><thead><tr><th>Title</th><th>Concurrent cap</th><th>Status</th></tr></thead>
+        <tbody id="capped-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="catalog">
+    <div class="card">
+      <h3>E-Book license catalog</h3>
+      <div class="grid licenses" id="license-grid"></div>
+    </div>
+    <div class="card">
+      <h3>Publishers</h3>
+      <table><thead><tr><th>Publisher</th><th>Contact email</th><th>Phone</th></tr></thead>
+        <tbody id="publisher-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="checkout">
+    <div class="card">
+      <h3>Borrow an e-book</h3>
+      <div class="row">
+        <select id="checkout-patron"></select>
+        <select id="checkout-license"></select>
+        <button onclick="startCheckout()">Borrow &amp; issue key</button>
+      </div>
+      <h3 style="margin-top:18px;">Active / recent checkouts</h3>
+      <table><thead><tr><th>Patron</th><th>Title</th><th>Due</th><th>Late fee (₹)</th><th>Status</th><th></th></tr></thead>
+        <tbody id="checkout-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="finance">
+    <div class="grid" style="grid-template-columns:1fr 1fr;">
+      <div class="card">
+        <h3>Profit &amp; Loss</h3>
+        <canvas id="pnlChart"></canvas>
+      </div>
+      <div class="card">
+        <h3>Department budget vs actual</h3>
+        <canvas id="budgetChart"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Membership invoices (non-resident fees)</h3>
+      <table><thead><tr><th>Patron</th><th>Description</th><th>Amount (₹)</th><th>Status</th></tr></thead>
+        <tbody id="invoice-rows"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Vendor bills (publisher licensing)</h3>
+      <table><thead><tr><th>Publisher</th><th>Description</th><th>Amount (₹)</th><th>Status</th></tr></thead>
+        <tbody id="bill-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<script>
+// ---- Tabs ----
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('section').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById(t.dataset.tab).classList.add('active');
+}));
+
+// ---- API base: same origin when served by Spring Boot; falls back to demo data otherwise ----
+const API = '/api/ebooks';
+
+let state = {
+  licenses: [], publishers: [], patrons: [], checkouts: [], invoices: [], bills: [], budget: null, pnl: null, capped: []
+};
+
+function demoData(){
+  state.publishers = [{name:'Penguin Civic Press', contactEmail:'rights@penguincivic.example', phone:'+91-8000000001'},
+                       {name:'OpenShelf Academic', contactEmail:'licensing@openshelf.example', phone:'+91-8000000002'}];
+  state.licenses = [
+    {id:1, title:'The Municipal Reader', concurrentCheckoutLimit:5, status:'ACTIVE'},
+    {id:2, title:'Civic Data Structures', concurrentCheckoutLimit:3, status:'ACTIVE'},
+    {id:3, title:'Journal of Urban Studies', concurrentCheckoutLimit:2, status:'ACTIVE'}
+  ];
+  state.patrons = [{id:1,name:'Meera Krishnan'},{id:2,name:'Arjun Mehta'},{id:3,name:'Sara Thomas'}];
+  state.checkouts = [];
+  state.capped = [];
+  state.invoices = [{patron:{name:'Arjun Mehta'}, description:'Annual Non-Resident Card - FY26', amount:1500, status:'OPEN'}];
+  state.bills = [{publisher:{name:'Penguin Civic Press'}, description:'100-user concurrent license bundle - PO#4021', amount:120000, status:'UNPAID'}];
+  state.pnl = {subscriptionRevenue:1500, lateAccessFeeRevenue:0, digitalLicensingExpenses:120000, netIncome:-118500};
+  state.budget = {departments:[{department:'City Digital Media Unit', acquisitionBudget:50000, actualLicensingSpend:120000, serverCostBudget:8000, subscriptionRevenue:1500}]};
+}
+
+async function tryFetch(path){
+  try{
+    const r = await fetch(API+path);
+    if(!r.ok) throw new Error('no api');
+    return await r.json();
+  }catch(e){ return null; }
+}
+
+async function loadAll(){
+  const [licenses, publishers, patrons, checkouts, capped, invoices, bills, pnl, budget] = await Promise.all([
+    tryFetch('/licenses'), tryFetch('/publishers'), tryFetch('/patrons'), tryFetch('/checkouts'),
+    tryFetch('/licenses/near-capacity'), tryFetch('/invoices'), tryFetch('/vendor-bills'),
+    tryFetch('/reports/pnl'), tryFetch('/reports/budget')
+  ]);
+  if(licenses===null){ demoData(); }
+  else { state.licenses=licenses; state.publishers=publishers||[]; state.patrons=patrons||[]; state.checkouts=checkouts||[];
+         state.capped=capped||[]; state.invoices=invoices||[]; state.bills=bills||[]; state.pnl=pnl; state.budget=budget; }
+  render();
+}
+
+function capClass(active,limit){ const ratio=limit?active/limit:0; return ratio>=1?'cap-full':(ratio>=0.6?'cap-mid':'cap-ok'); }
+
+function activeCountFor(licenseId){
+  return state.checkouts.filter(c=>c.status==='ACTIVE' && c.license && c.license.id===licenseId).length;
+}
+
+function render(){
+  const activeLicenses = state.licenses.filter(l=>l.status==='ACTIVE').length;
+  const activeCheckouts = state.checkouts.filter(c=>c.status==='ACTIVE').length;
+  document.getElementById('stat-licenses').textContent = activeLicenses;
+  document.getElementById('stat-checkouts').textContent = activeCheckouts;
+  document.getElementById('stat-capped').textContent = state.capped.length;
+  document.getElementById('stat-revenue').textContent = (state.pnl? state.pnl.subscriptionRevenue : 0).toLocaleString();
+
+  document.getElementById('capped-rows').innerHTML = state.capped.map(l=>
+    `<tr><td>${l.title}</td><td>${l.concurrentCheckoutLimit}</td><td><span class="flag">Needs extra keys</span></td></tr>`
+  ).join('') || '<tr><td colspan="3" style="color:var(--sub)">All licenses have headroom 🎉</td></tr>';
+
+  document.getElementById('license-grid').innerHTML = state.licenses.map(l=>{
+    const active = activeCountFor(l.id);
+    const pct = l.concurrentCheckoutLimit? Math.min(100, Math.round(active/l.concurrentCheckoutLimit*100)) : 0;
+    return `
+    <div class="license">
+      <span class="st st-${l.status}">${l.status}</span>
+      <div class="tag">${l.title}</div>
+      <div style="color:var(--sub); font-size:12px;">${active} / ${l.concurrentCheckoutLimit} concurrent</div>
+      <div class="cap"><span class="${capClass(active,l.concurrentCheckoutLimit)}" style="width:${pct}%"></span></div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('publisher-rows').innerHTML = state.publishers.map(p=>
+    `<tr><td>${p.name}</td><td>${p.contactEmail||'—'}</td><td>${p.phone||'—'}</td></tr>`).join('');
+
+  const patronSel = document.getElementById('checkout-patron');
+  patronSel.innerHTML = state.patrons.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  const licenseSel = document.getElementById('checkout-license');
+  licenseSel.innerHTML = state.licenses.filter(l=>l.status==='ACTIVE').map(l=>`<option value="${l.id}">${l.title}</option>`).join('');
+
+  document.getElementById('checkout-rows').innerHTML = state.checkouts.map(c=>`
+    <tr><td>${c.patron?.name||'—'}</td><td>${c.license?.title||'—'}</td>
+      <td>${c.dueDate||'—'}</td><td>₹${(c.lateAccessFee||0).toFixed(2)}</td>
+      <td><span class="pill">${c.status}</span></td>
+      <td>${c.status==='ACTIVE'?`<button class="ghost" onclick="returnEbook(${c.id})">Return</button>`:''}</td>
+    </tr>`).join('') || '<tr><td colspan="6" style="color:var(--sub)">No checkouts yet — borrow one above.</td></tr>';
+
+  document.getElementById('invoice-rows').innerHTML = state.invoices.map(i=>
+    `<tr><td>${i.patron?.name||'—'}</td><td>${i.description}</td><td>${i.amount.toLocaleString()}</td><td>${i.status}</td></tr>`).join('');
+  document.getElementById('bill-rows').innerHTML = state.bills.map(b=>
+    `<tr><td>${b.publisher?.name||'—'}</td><td>${b.description}</td><td>${b.amount.toLocaleString()}</td><td>${b.status}</td></tr>`).join('');
+
+  drawCharts();
+}
+
+let pnlChart, budgetChart;
+function drawCharts(){
+  const p = state.pnl || {subscriptionRevenue:0, lateAccessFeeRevenue:0, digitalLicensingExpenses:0};
+  const ctx1 = document.getElementById('pnlChart');
+  if(pnlChart) pnlChart.destroy();
+  pnlChart = new Chart(ctx1, {type:'bar', data:{
+    labels:['Subscription revenue','Late access fees','Licensing expenses'],
+    datasets:[{data:[p.subscriptionRevenue,p.lateAccessFeeRevenue,p.digitalLicensingExpenses],
+      backgroundColor:['#E8B94B','#4FB6A8','#FF6B6B'], borderRadius:6}]
+  }, options:{plugins:{legend:{display:false}}, scales:{
+      x:{ticks:{color:'#A7998A'},grid:{color:'#3A312A'}}, y:{ticks:{color:'#A7998A'},grid:{color:'#3A312A'}}}}});
+
+  const b = (state.budget && state.budget.departments && state.budget.departments[0]) || {acquisitionBudget:0,actualLicensingSpend:0};
+  const ctx2 = document.getElementById('budgetChart');
+  if(budgetChart) budgetChart.destroy();
+  budgetChart = new Chart(ctx2, {type:'bar', data:{
+    labels:['Acquisition budget','Actual spend'],
+    datasets:[{data:[b.acquisitionBudget,b.actualLicensingSpend], backgroundColor:['#4FB6A8','#FF9B4A'], borderRadius:6}]
+  }, options:{plugins:{legend:{display:false}}, scales:{
+      x:{ticks:{color:'#A7998A'},grid:{color:'#3A312A'}}, y:{ticks:{color:'#A7998A'},grid:{color:'#3A312A'}}}}});
+}
+
+async function startCheckout(){
+  const patronId = document.getElementById('checkout-patron').value;
+  const licenseId = document.getElementById('checkout-license').value;
+  if(!patronId || !licenseId) return;
+  try{
+    const r = await fetch(`${API}/checkout?patronId=${patronId}&licenseId=${licenseId}`, {method:'POST'});
+    if(!r.ok){
+      const msg = await r.text();
+      alert(msg || 'Checkout denied: concurrent checkout cap reached');
+      return;
+    }
+    await loadAll();
+  }catch(e){
+    // demo fallback: simulate locally
+    const license = state.licenses.find(l=>String(l.id)===String(licenseId));
+    const patron = state.patrons.find(p=>String(p.id)===String(patronId));
+    state.checkouts.unshift({id:Date.now(), patron, license, status:'ACTIVE', dueDate:'—', lateAccessFee:0});
+    render();
+  }
+}
+
+async function returnEbook(id){
+  try{
+    const r = await fetch(`${API}/checkouts/${id}/return`, {method:'PUT'});
+    if(!r.ok) throw new Error();
+    await loadAll();
+  }catch(e){
+    const c = state.checkouts.find(c=>c.id===id);
+    if(c) c.status='RETURNED';
+    render();
+  }
+}
+
+loadAll();
+</script>
+</body>
+</html>
